@@ -4,6 +4,7 @@ import (
     "flag"
     "fmt"
     "strconv"
+    "sync"
     "time"
 )
 
@@ -17,6 +18,11 @@ type Response struct {
     response bool
 }
 
+
+func respondSync(channel chan<- Response, message Response) {
+    channel <- message
+}
+
 func respond(channel chan<- Response, message Response) {
     select {
     case channel <- message:
@@ -26,7 +32,10 @@ func respond(channel chan<- Response, message Response) {
     }
 }
 
-func acceptor(n int, proposals <-chan Proposal, end <-chan bool) {
+func acceptor(n int, proposals <-chan Proposal, end <-chan bool, wg sync.WaitGroup) {
+    wg.Add(1)
+    defer wg.Done()
+
     for {
         select {
         case proposal := <-proposals:
@@ -45,6 +54,8 @@ func acceptor(n int, proposals <-chan Proposal, end <-chan bool) {
 }
 
 func main() {
+    var wg sync.WaitGroup
+
     flag.Parse()
     rawParameters := flag.Args()
 
@@ -60,14 +71,17 @@ func main() {
     for i := 0; i < numAcceptors ; i++ {
         proposals[i] = make(chan Proposal)
         killers[i] = make(chan bool)
-        go acceptor(acceptorParameters[i], proposals[i], killers[i])
+        go acceptor(acceptorParameters[i], proposals[i], killers[i], wg)
     }
 
     responseChannel := make(chan Response)
 
     suicide := make(chan bool)
 
-    go (func (transmitters []chan Proposal, responseChannel chan<- Response, end <-chan bool) {
+    go (func (transmitters []chan Proposal, responseChannel chan<- Response, end <-chan bool, wg sync.WaitGroup) {
+        wg.Add(1)
+        defer wg.Done()
+
         var i int = 1
         for {
             select {
@@ -83,7 +97,7 @@ func main() {
             i++
             time.Sleep(time.Millisecond)
         }
-    })(proposals, responseChannel, suicide)
+    })(proposals, responseChannel, suicide, wg)
 
     counts := make(map[int]int)
 
@@ -104,4 +118,6 @@ func main() {
             break
         }
     }
+
+    wg.Wait()
 }

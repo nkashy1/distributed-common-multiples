@@ -27,3 +27,6 @@ Acceptor with key 5: accepted proposal 1200
 CONSENSUS: 1200
 Proposer: Killing self
 ```
+
+The reason you are seeing `1200` and not `30` like you might is that the responses are being sent asynchronously and we are neither
+using buffered channels nor blocking on channel sends.
