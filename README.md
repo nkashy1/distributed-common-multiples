@@ -29,4 +29,5 @@ Proposer: Killing self
 ```
 
 The reason you are seeing `1200` and not `30` like you might is that the responses are being sent asynchronously and we are neither
-using buffered channels nor blocking on channel sends.
+using buffered channels nor blocking on channel sends. If you use the `respondSync` function in `acceptor` instead, you will get
+the least common multiple of the smallest majority of acceptor parameters.
